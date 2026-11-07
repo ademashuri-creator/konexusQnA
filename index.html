@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Konexus QnA</title>
+<style>
+/* Satu pertanyaan per layar, ukuran HP lebih dulu. Terang dan padat seperti web Konexus. */
+:root{--bg:#eef1f4;--panel:#fff;--ink:#1c2733;--mut:#5c6b7a;--line:#d5dce3;--acc:#0b6e74;--acc-soft:#e1f1f1;--rec:#c0322b;--rec-soft:#fbe9e7;--warn:#7a5000;--warn-soft:#fdf3dc;--ok:#1d7a46;--off:#c6d0d8;--off-ink:#3f4d5a}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:680px;margin:0 auto;padding-block:16px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:12px}
+header.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;margin:0;line-height:1.25}
+h2{font-size:16px;margin:0}
+p{margin:0}
+.sub{color:var(--mut);font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;display:grid;gap:10px;min-width:0}
+label{font-size:13px;font-weight:600;display:grid;gap:4px}
+input[type=text]{font:inherit;padding:10px;border:1px solid var(--line);border-radius:4px;width:100%;background:#fff;color:var(--ink);text-transform:uppercase;letter-spacing:.08em}
+ol.how{margin:0;padding-left:20px;display:grid;gap:3px}
+.note{background:var(--warn-soft);color:var(--warn);border-radius:4px;padding:8px 10px;font-size:13px}
+.roles{display:grid;gap:8px}
+.role{display:grid;grid-template-columns:1fr auto;gap:2px 10px;text-align:left;font:inherit;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:10px 12px;cursor:pointer}
+.role:hover{border-color:var(--acc)}
+.role b{font-size:14px}.role small{color:var(--mut);grid-column:1}.role .ct{grid-column:2;grid-row:1/3;align-self:center;font-size:12px;color:var(--acc);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+.meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--mut);font-variant-numeric:tabular-nums}
+.stage{display:inline-block;background:var(--acc-soft);color:var(--acc);font-size:12px;font-weight:600;border-radius:3px;padding:2px 8px;justify-self:start}
+.q{font-size:19px;line-height:1.4;font-weight:600;text-wrap:pretty}
+.hint{color:var(--mut);font-size:13.5px}
+.mic{font:inherit;font-weight:600;font-size:16px;min-height:58px;width:100%;border:0;border-radius:6px;background:var(--acc);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;padding:8px 12px}
+.mic svg{width:20px;height:20px;flex:none}
+.mic:disabled{background:var(--off);color:var(--off-ink);cursor:not-allowed}
+.mic.rec{background:var(--rec);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 6px var(--rec-soft)}}
+@media(prefers-reduced-motion:reduce){.mic.rec{animation:none}}
+.think{height:4px;background:var(--line);border-radius:2px;overflow:hidden}.think i{display:block;height:100%;width:0;background:var(--warn);transition:width 1s linear}
+textarea{font:inherit;width:100%;min-height:130px;padding:10px;border:1px solid var(--line);border-radius:4px;resize:vertical;background:#fff;color:var(--ink)}
+textarea[readonly]{background:#f6f8fa;color:var(--mut)}
+.interim{color:var(--mut);font-style:italic;font-size:14px;min-height:20px}
+.msg{font-size:13px;color:var(--warn)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:space-between}
+.btn{font:inherit;font-weight:600;font-size:14px;padding:10px 14px;border-radius:4px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.link{background:none;border:0;padding:4px 0;font:inherit;font-size:13px;color:var(--mut);text-decoration:underline;cursor:pointer}
+.link:disabled{opacity:.45;cursor:not-allowed}
+.flag{background:var(--warn-soft);color:var(--warn);font-size:13px;border-radius:4px;padding:6px 10px}
+.sync{font-size:12px;color:var(--mut)}.sync.good{color:var(--ok)}.sync.bad{color:var(--warn)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.sum{display:grid;gap:8px}.sum article{border-top:1px solid var(--line);padding-top:8px;display:grid;gap:2px;min-width:0}
+.sum p{overflow-wrap:anywhere}.sum .tq{font-weight:600;font-size:13.5px}.sum .ta{white-space:pre-wrap}.sum .empty{color:var(--warn)}
+</style>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+'use strict';
+const THINK_SECONDS = 20; // jeda wajib sebelum tombol suara aktif
+const STORE = 'konexus-qna-v2';
+const API = window.KX_ENDPOINT || '';
+
+const load = () => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch (e) { return {}; } };
+const S = Object.assign({ code: '', rid: '', bank: null, positions: null, position: null, idx: 0, answers: {}, thought: {} }, load());
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* tetap jalan tanpa penyimpanan */ } };
+if (!S.rid) {
+  const a = new Uint8Array(16); crypto.getRandomValues(a);
+  S.rid = Array.from(a, (x) => x.toString(16).padStart(2, '0')).join(''); save();
+}
+
+const app = document.getElementById('app');
+const el = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const isFor = (q, pos) => q.roles.includes('ALL') || q.roles.includes(pos);
+const questions = (pos) => (S.bank || []).filter((q) => isFor(q, pos));
+const key = (pos, id) => pos + ':' + id;
+const Speech = () => window.SpeechRecognition || window.webkitSpeechRecognition || null;
+const isAndroid = /Android/i.test(navigator.userAgent);
+const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+
+let timer = null, rec = null, recording = false, voiceBlocked = false, syncing = false, syncAgain = false, syncState = '', syncCb = null;
+
+async function call(body) {
+  const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ code: S.code }, body)) });
+  return r.json();
+}
+function stopAll() {
+  if (timer) { clearInterval(timer); timer = null; }
+  recording = false;
+  if (rec) { try { rec.onend = null; rec.stop(); } catch (e) { /* sudah berhenti */ } rec = null; }
+}
+
+// ---------- kirim ke Sheet: jawaban tetap aman di HP bila sinyal hilang ----------
+const dirtyList = () => questions(S.position).map((q) => S.answers[key(S.position, q.id)] && S.answers[key(S.position, q.id)].dirty ? { q, a: S.answers[key(S.position, q.id)] } : null).filter(Boolean);
+function showSync(text, cls) { syncState = text; document.querySelectorAll('.sync').forEach((n) => { n.textContent = text; n.className = 'sync ' + (cls || ''); }); if (syncCb) syncCb(); }
+async function syncNow() {
+  if (!S.position) return;
+  if (syncing) { syncAgain = true; return; }
+  const list = dirtyList().slice(0, 40);
+  if (!list.length) return;
+  syncing = true; showSync('Mengirim jawaban…');
+  const sent = list.map((x) => ({ id: x.q.id, text: x.a.text, status: x.a.status, stamp: x.a.stamp }));
+  try {
+    const r = await call({ action: 'submit', respondent: S.rid, position: S.position, answers: sent.map(({ id, text, status }) => ({ id, text, status })) });
+    if (!r.ok) throw new Error(r.error || 'gagal');
+    sent.forEach((x) => { const a = S.answers[key(S.position, x.id)]; if (a && a.stamp === x.stamp) a.dirty = false; });
+    save();
+    const left = dirtyList().length;
+    showSync(left ? 'Sebagian belum terkirim. Tersimpan di HP ini.' : 'Semua jawaban sudah terkirim.', left ? 'bad' : 'good');
+  } catch (e) { showSync('Belum terkirim. Tersimpan di HP ini, dan dikirim saat ada sinyal.', 'bad'); }
+  syncing = false;
+  if (syncAgain) { syncAgain = false; syncNow(); }
+}
+window.addEventListener('online', syncNow);
+
+// ---------- masuk ----------
+function gate(msg) {
+  stopAll(); app.replaceChildren();
+  app.append(el('<header class="top"><h1>Konexus QnA</h1><span class="sub">Cara kerja dari terima PO sampai invoice</span></header>'));
+  const p = el(`<section class="panel"><h2>Masukkan kode akses</h2><p class="sub">Kode dibagikan bersama link ini.</p>
+    <label for="f-code">Kode akses<input id="f-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(S.code)}"></label>
+    <p class="msg" id="msg" ${msg ? '' : 'hidden'}>${esc(msg || '')}</p>
+    <div class="row"><button class="btn pri" id="go" type="button">Masuk</button></div></section>`);
+  app.append(p);
+  const go = p.querySelector('#go'), input = p.querySelector('#f-code'), m = p.querySelector('#msg');
+  const submit = async () => {
+    const code = input.value.trim().toUpperCase();
+    if (!code) { m.hidden = false; m.textContent = 'Isi kode akses dulu.'; input.focus(); return; }
+    if (!API) { m.hidden = false; m.textContent = 'Halaman ini belum disambungkan ke Sheet.'; return; }
+    go.disabled = true; m.hidden = true; S.code = code;
+    try {
+      const r = await call({ action: 'bank' });
+      if (!r.ok) { S.code = ''; save(); m.hidden = false; m.textContent = r.auth ? 'Kode akses salah. Periksa lagi kodenya.' : r.error; go.disabled = false; return; }
+      S.bank = r.questions; S.positions = r.positions; save(); home();
+    } catch (e) { m.hidden = false; m.textContent = 'Tidak bisa terhubung. Periksa internet, lalu coba lagi.'; go.disabled = false; }
+  };
+  go.addEventListener('click', submit);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+}
+
+// ---------- pilih posisi ----------
+function home() {
+  stopAll(); S.position = null; save(); app.replaceChildren();
+  app.append(el('<header class="top"><h1>Konexus QnA</h1><span class="sub">Cara kerja dari terima PO sampai invoice</span></header>'));
+  app.append(el(`<section class="panel"><h2>Cara menjawab</h2>
+    <ol class="how"><li>Baca pertanyaannya. Tombol suara terkunci ${THINK_SECONDS} detik supaya Anda sempat berpikir.</li>
+    <li>Tekan tombol, lalu jawab dengan suara seperti bercerita. Suara Anda diubah menjadi teks.</li>
+    <li>Periksa teksnya, perbaiki bila perlu, lalu lanjut. Jawaban bisa dicicil.</li></ol>
+    <p class="note">Jawaban ini anonim dan tidak dipakai menilai orang. Ceritakan yang benar-benar terjadi, tanpa menyebut nama orang, password, IP asli, atau data rahasia. Rekaman suara tidak disimpan. Di Chrome, suara diproses layanan pengenal suara Google, dan teks jawaban tersimpan di Google Sheet pengelola survei.</p></section>`));
+  const list = el('<section class="panel"><h2>Pilih posisi Anda</h2><div class="roles" id="roles"></div></section>');
+  app.append(list);
+  const box = list.querySelector('#roles');
+  (S.positions || []).forEach((p) => {
+    const qs = questions(p.id), done = qs.filter((q) => S.answers[key(p.id, q.id)]).length;
+    const b = el(`<button class="role" type="button"><b>${esc(p.name)}</b><small>${esc(p.who)}</small><span class="ct">${done ? done + ' dari ' : ''}${qs.length} pertanyaan</span></button>`);
+    b.addEventListener('click', () => {
+      S.position = p.id;
+      const first = qs.findIndex((q) => !S.answers[key(p.id, q.id)]);
+      S.idx = first < 0 ? 0 : first; save();
+      first < 0 ? summary() : ask();
+    });
+    box.append(b);
+  });
+}
+const posName = () => ((S.positions || []).find((p) => p.id === S.position) || {}).name || '';
+
+// ---------- satu pertanyaan ----------
+function ask() {
+  stopAll();
+  const qs = questions(S.position), i = S.idx, Q = qs[i], k = key(S.position, Q.id), a = S.answers[k] || null;
+  const supported = !!Speech();
+  app.replaceChildren();
+  app.append(el(`<header class="top"><h1>${esc(posName())}</h1><button class="link" id="to-home" type="button">Ganti posisi</button></header>`));
+  const answered = qs.filter((q) => S.answers[key(S.position, q.id)]).length;
+  const card = el(`<section class="panel">
+    <div class="meta"><span>Pertanyaan ${i + 1} dari ${qs.length}</span><span>${answered} terjawab</span></div>
+    <div class="bar"><i style="width:${Math.round(i / qs.length * 100)}%"></i></div>
+    <span class="stage">${esc(Q.stage)}</span>
+    <p class="q">${esc(Q.q)}</p><p class="hint">${esc(Q.hint)}</p>
+    <div class="think" id="think"><i></i></div>
+    <button class="mic" id="mic" type="button"></button>
+    <div class="interim" id="interim" aria-live="polite"></div>
+    <p class="msg" id="msg" hidden></p>
+    <label for="answer">Jawaban Anda<textarea id="answer"></textarea></label>
+    <p class="flag" id="flag" hidden>Ditandai tidak relevan dengan pekerjaan Anda.</p>
+    <div class="row"><button class="link" id="skip" type="button">Tidak relevan dengan pekerjaan saya</button></div>
+    <div class="row end"><button class="btn" id="prev" type="button">Kembali</button><button class="btn pri" id="next" type="button"></button></div>
+    <p class="sync" aria-live="polite"></p></section>`);
+  app.append(card);
+  const $ = (s) => card.querySelector(s), mic = $('#mic'), ta = $('#answer'), thinkBar = $('#think'), bar = thinkBar.firstChild;
+  ta.value = a && a.status === 'dijawab' ? a.text : '';
+  document.getElementById('to-home').addEventListener('click', () => { store(); syncNow(); home(); });
+  $('#next').textContent = i === qs.length - 1 ? 'Selesai' : 'Lanjut';
+  $('.sync').textContent = syncState;
+  let remaining = S.thought[k] ? 0 : THINK_SECONDS;
+
+  const mark = (status, text) => { S.answers[k] = { status, text, dirty: true, stamp: Date.now() }; };
+  function store() {
+    const cur = S.answers[k], text = ta.value.trim();
+    if (text) { if (!cur || cur.status !== 'dijawab' || cur.text !== ta.value) mark('dijawab', ta.value); }
+    else if (cur && cur.status === 'dijawab') delete S.answers[k];
+    save();
+  }
+  const paint = () => {
+    const cur = S.answers[k] || {}, hasText = !!ta.value.trim(), thinking = remaining > 0;
+    thinkBar.hidden = !thinking;
+    if (thinking) bar.style.width = Math.round((THINK_SECONDS - remaining) / THINK_SECONDS * 100) + '%';
+    mic.disabled = thinking || !supported || voiceBlocked;
+    mic.classList.toggle('rec', recording);
+    mic.innerHTML = MIC + '<span>' + (thinking ? 'Pikirkan dulu · ' + remaining + ' detik'
+      : !supported ? 'Tombol suara butuh Chrome'
+      : voiceBlocked ? 'Mikrofon tidak bisa dipakai'
+      : recording ? 'Selesai bicara'
+      : hasText ? 'Tambah jawaban dengan suara' : 'Tekan lalu bicara') + '</span>';
+    // Teks baru bisa diisi setelah bicara, kecuali suara tidak tersedia di HP ini
+    const canType = hasText || ((!supported || voiceBlocked) && !thinking);
+    ta.readOnly = !canType || recording;
+    ta.placeholder = thinking ? 'Pikirkan jawaban Anda dulu.' : canType ? 'Pakai ikon mikrofon di keyboard HP, atau ketik.' : 'Teks jawaban muncul di sini setelah Anda bicara.';
+    $('#flag').hidden = cur.status !== 'tidak_relevan';
+    $('#skip').disabled = thinking || recording;
+    $('#next').disabled = thinking || recording || !(hasText || cur.status === 'tidak_relevan');
+    $('#prev').disabled = i === 0 || recording;
+  };
+  const say = (t) => { const m = $('#msg'); m.hidden = !t; m.textContent = t || ''; };
+  if (!supported) say('Browser ini belum mendukung tombol suara. Buka link ini di Chrome, atau pakai ikon mikrofon di keyboard HP setelah jeda selesai.');
+  else if (voiceBlocked) say('Izin mikrofon ditolak. Izinkan mikrofon di pengaturan browser, atau pakai ikon mikrofon di keyboard HP.');
+
+  const append = (t) => { const s = t.trim(); if (!s) return; ta.value = (ta.value.trim() ? ta.value.trim() + ' ' : '') + s; store(); paint(); };
+  function start() {
+    const SR = Speech(); rec = new SR();
+    rec.lang = 'id-ID'; rec.interimResults = true; rec.continuous = !isAndroid; // di Android, mode continuous mengulang hasil
+    let doneIdx = 0;
+    rec.onresult = (e) => {
+      let interim = '';
+      for (let n = e.resultIndex; n < e.results.length; n++) {
+        const r = e.results[n];
+        if (r.isFinal) { if (n >= doneIdx) { append(r[0].transcript); doneIdx = n + 1; } } else interim += r[0].transcript;
+      }
+      $('#interim').textContent = interim;
+    };
+    rec.onerror = (e) => {
+      if (['not-allowed', 'service-not-allowed', 'audio-capture'].includes(e.error)) {
+        recording = false; voiceBlocked = true;
+        say('Mikrofon tidak bisa dipakai. Izinkan mikrofon di pengaturan browser, atau pakai ikon mikrofon di keyboard HP.');
+        paint();
+      } else if (e.error === 'network') { recording = false; say('Pengubah suara butuh internet. Periksa koneksi, lalu tekan lagi.'); paint(); }
+    };
+    rec.onend = () => { $('#interim').textContent = ''; if (recording) { try { start(); } catch (x) { recording = false; paint(); } } else { rec = null; paint(); } };
+    rec.start();
+  }
+  mic.addEventListener('click', () => {
+    if (recording) { recording = false; try { rec.stop(); } catch (e) { /* sudah berhenti */ } paint(); return; }
+    say(''); recording = true; try { start(); } catch (e) { recording = false; say('Tombol suara gagal dimulai. Coba tekan lagi.'); } paint();
+  });
+  ta.addEventListener('input', () => { store(); paint(); });
+  $('#skip').addEventListener('click', () => {
+    const cur = S.answers[k];
+    if (cur && cur.status === 'tidak_relevan') delete S.answers[k]; else { ta.value = ''; mark('tidak_relevan', ''); }
+    save(); paint();
+  });
+  $('#prev').addEventListener('click', () => { store(); S.idx = i - 1; save(); syncNow(); ask(); });
+  $('#next').addEventListener('click', () => { store(); syncNow(); if (i === qs.length - 1) { save(); summary(); } else { S.idx = i + 1; save(); ask(); } });
+
+  paint();
+  if (remaining > 0) timer = setInterval(() => {
+    if (document.hidden) return; // jeda hanya berjalan saat pertanyaan terlihat
+    remaining--;
+    if (remaining <= 0) { clearInterval(timer); timer = null; S.thought[k] = true; save(); }
+    paint();
+  }, 1000);
+}
+
+// ---------- hasil ----------
+function summary() {
+  stopAll();
+  const qs = questions(S.position), vals = qs.map((q) => S.answers[key(S.position, q.id)]);
+  const filled = vals.filter((a) => a && a.status === 'dijawab').length, skipped = vals.filter((a) => a && a.status === 'tidak_relevan').length, empty = vals.length - filled - skipped;
+  app.replaceChildren();
+  app.append(el(`<header class="top"><h1>${esc(posName())}</h1><button class="link" id="to-home" type="button">Ganti posisi</button></header>`));
+  const panel = el(`<section class="panel"><h2>${empty ? 'Masih ada yang belum dijawab' : 'Terima kasih'}</h2>
+    <p class="sub">${filled} dijawab · ${skipped} tidak relevan · ${empty} belum dijawab</p>
+    <p class="sync" aria-live="polite"></p>
+    <div class="row"><button class="btn pri" id="send" type="button">Kirim ulang</button><button class="btn" id="edit" type="button">${empty ? 'Lanjut menjawab' : 'Perbaiki jawaban'}</button></div>
+    <div class="sum" id="sum"></div></section>`);
+  app.append(panel);
+  document.getElementById('to-home').addEventListener('click', home);
+  const box = panel.querySelector('#sum'), send = panel.querySelector('#send');
+  qs.forEach((q, i) => {
+    const a = vals[i], ans = !a ? 'Belum dijawab' : a.status === 'tidak_relevan' ? 'Tidak relevan' : a.text.trim();
+    const art = el(`<article><span class="sub">${esc(q.stage)}</span><p class="tq">${esc(q.q)}</p><p class="ta ${a ? '' : 'empty'}"></p><div><button class="link" type="button">Ubah</button></div></article>`);
+    art.querySelector('.ta').textContent = ans;
+    art.querySelector('button').addEventListener('click', () => { S.idx = i; save(); ask(); });
+    box.append(art);
+  });
+  const paintSend = () => { const left = dirtyList().length; send.hidden = !left; };
+  syncCb = paintSend;
+  send.addEventListener('click', syncNow);
+  panel.querySelector('#edit').addEventListener('click', () => { const first = vals.findIndex((v) => !v); S.idx = first < 0 ? 0 : first; save(); ask(); });
+  paintSend();
+  if (dirtyList().length) syncNow(); else showSync(filled + skipped ? 'Semua jawaban sudah terkirim.' : '', 'good');
+}
+
+if (S.code && S.bank && S.positions) home(); else gate();
+</script>
+</body>
+</html>
